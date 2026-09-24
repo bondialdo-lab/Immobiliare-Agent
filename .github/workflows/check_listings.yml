@@ -1,0 +1,41 @@
+name: Controllo annunci San Lorenzo
+
+on:
+  schedule:
+    # Ogni 6 ore. Modifica il cron se vuoi una frequenza diversa.
+    # Sintassi: minuto ora giorno mese giorno-settimana (UTC)
+    - cron: "0 */6 * * *"
+  workflow_dispatch: {}  # permette di avviarlo manualmente da GitHub
+
+permissions:
+  contents: write  # serve per salvare seen_listings.json aggiornato
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Installa dipendenze
+        run: pip install -r requirements.txt
+
+      - name: Esegui lo scraper
+        env:
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        run: python scraper.py
+
+      - name: Salva lo stato aggiornato degli annunci visti
+        run: |
+          git config user.name "apartment-agent-bot"
+          git config user.email "actions@github.com"
+          git add seen_listings.json
+          git diff --staged --quiet || git commit -m "Aggiorna annunci visti [skip ci]"
+          git push
